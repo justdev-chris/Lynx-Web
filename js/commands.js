@@ -22,6 +22,7 @@
   lynx next              Next page of registry
   lynx prev              Previous page of registry
   lynx open <name>       Open a project
+  lynx delete <name>     Delete a project
   lynx save              Save current code to src/main.lnx
   lynx files             List files in current project
   lynx cat <file>        Print file contents
@@ -68,6 +69,19 @@
     function listProjects() {
         if (typeof projects !== 'undefined' && projects.list) {
             projects.list();
+        } else {
+            terminal.print('Project manager not loaded.', 'error');
+        }
+    }
+
+    // ─── DELETE ──────────────────────────────────────────────────
+    function deleteProject(name) {
+        if (!name) {
+            terminal.print('Usage: lynx delete <name>', 'error');
+            return;
+        }
+        if (typeof projects !== 'undefined' && projects.deleteProject) {
+            projects.deleteProject(name);
         } else {
             terminal.print('Project manager not loaded.', 'error');
         }
@@ -325,12 +339,12 @@
                     terminal.print('Usage: lynx list registry page <number>', 'error');
                 }
             } else if (args && args !== 'pkgs' && args !== 'registry') {
-                // If it's not a known subcommand, treat it as a project name? No, just list projects.
                 listProjects();
             } else {
                 listProjects();
             }
         },
+        'delete': deleteProject,
         'open': openProject,
         'save': saveProject,
         'files': listFiles,
