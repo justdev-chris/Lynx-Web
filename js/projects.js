@@ -304,15 +304,9 @@
         }
 
         const files = project.files;
-        const tar = new Tar();
-
-        for (const [path, content] of Object.entries(files)) {
-            tar.append(path, content);
-        }
-
-        const tarBytes = tar.out;
-        const gzipped = pako.gzip(tarBytes);
-        const blob = new Blob([gzipped], { type: 'application/gzip' });
+        const tarData = tar(files);
+        const compressed = gzipCompress(tarData);
+        const blob = new Blob([compressed], { type: 'application/gzip' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
