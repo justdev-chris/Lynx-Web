@@ -79,6 +79,30 @@
         });
     }
 
+    // ─── DELETE ──────────────────────────────────────────────────────
+    function deleteProject(name) {
+        if (!name) {
+            terminal.print('Usage: lynx delete <name>', 'error');
+            return;
+        }
+
+        let projects = getProjects();
+        const index = projects.findIndex(p => p.name === name);
+        if (index === -1) {
+            terminal.print(`Project "${name}" not found.`, 'error');
+            return;
+        }
+
+        const active = getActive();
+        if (active === name) {
+            setActive(null);
+        }
+
+        projects.splice(index, 1);
+        saveProjects(projects);
+        terminal.print(`🗑️ Deleted project "${name}"`, 'success');
+    }
+
     // ─── OPEN ──────────────────────────────────────────────────────
     function openProject(name) {
         if (!name) {
@@ -323,6 +347,7 @@
     window.projects = {
         create: createProject,
         list: listProjects,
+        deleteProject: deleteProject,
         open: openProject,
         save: saveProject,
         files: listFiles,
