@@ -304,11 +304,15 @@
         }
 
         const files = project.files;
-        const tarContent = Object.entries(files)
-            .map(([path, content]) => `=== ${path} ===\n${content}`)
-            .join('\n\n');
+        const tar = new Tar();
 
-        const blob = new Blob([tarContent], { type: 'application/gzip' });
+        for (const [path, content] of Object.entries(files)) {
+            tar.append(path, content);
+        }
+
+        const tarBytes = tar.out;
+        const gzipped = pako.gzip(tarBytes);
+        const blob = new Blob([gzipped], { type: 'application/gzip' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
