@@ -112,7 +112,6 @@
             return;
         }
 
-        // If content is provided, save to src/main.lnx
         if (content) {
             project.files['src/main.lnx'] = content;
             saveProjects(projects);
@@ -120,8 +119,6 @@
             return;
         }
 
-        // Otherwise, save the current terminal input buffer
-        // This is handled by the terminal — we'll use the current multi-line
         terminal.print('⚠️ No content provided. Use: lynx save "content" or save via terminal', 'warning');
     }
 
@@ -306,21 +303,22 @@
             return;
         }
 
-        // Create a tarball-like download
         const files = project.files;
         const tarContent = Object.entries(files)
             .map(([path, content]) => `=== ${path} ===\n${content}`)
             .join('\n\n');
 
-        const blob = new Blob([tarContent], { type: 'application/x-tar' });
+        const blob = new Blob([tarContent], { type: 'application/gzip' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${name}.tar.gz`;
+        a.download = `${name.replace(/\s+/g, '_')}.tar.gz`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-        terminal.print(`📦 Published "${name}" as ${name}.tar.gz`, 'success');
+        terminal.print(`📦 Published "${name}" as ${name.replace(/\s+/g, '_')}.tar.gz`, 'success');
     }
 
     // ─── EXPOSE ──────────────────────────────────────────────────
