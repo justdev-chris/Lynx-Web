@@ -1,6 +1,11 @@
 // js/commands.js – All lynx commands (help, init, build, etc.)
 
 (function() {
+    // ─── REGISTRY STATE ──────────────────────────────────────────
+    let registryPage = 0;
+    const PAGE_SIZE = 50;
+    let registryCache = [];
+
     // ─── HELP ──────────────────────────────────────────────────────
     function showHelp() {
         terminal.print(`
@@ -12,6 +17,10 @@
 
   lynx init <name>       Create a new project
   lynx list              List all projects
+  lynx list pkgs         List installed packages
+  lynx list registry     List all packages in registry (50 per page)
+  lynx next              Next page of registry
+  lynx prev              Previous page of registry
   lynx open <name>       Open a project
   lynx save              Save current code to src/main.lnx
   lynx files             List files in current project
@@ -22,7 +31,6 @@
   lynx add <pkg>         Add a dependency
   lynx install           Install all dependencies
   lynx remove <pkg>      Remove a dependency
-  lynx list pkgs         List installed packages
 
   lynx build             Run src/main.lnx
   lynx run <file.lnx>    Run a Lynx file
@@ -131,6 +139,73 @@
         }
     }
 
+    // ─── REGISTRY FETCH ──────────────────────────────────────────
+    async function fetchRegistry() {
+        const REGISTRY_URL = 'https://raw.githubusercontent.com/justdev-chris/lynx-registry/main/packages.json';
+        try {
+            const resp = await fetch(REGISTRY_URL);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            return await resp.json();
+        } catch (e) {
+            terminal.print(`Failed to fetch registry: ${e.message}`, 'error');
+            return null;
+        }
+    }
+
+    // ─── LIST REGISTRY ──────────────────────────────────────────
+    async function listRegistry(page) {
+        if (page !== undefined) registryPage = page;
+
+        const registry = await fetchRegistry();
+        if (!registry) return;
+
+        const packages = registry.packages || {};
+        registryCache = Object.entries(packages).map(([name, data]) => ({
+            name,
+            description: data.description || '',
+            version: data.latest || data.versions?.[0] || '0.1.0'
+        }));
+
+        const total = registryCache.length;
+        const start = registryPage * PAGE_SIZE;
+        const end = Math.min(start + PAGE_SIZE, total);
+        const pageData = registryCache.slice(start, end);
+
+        if (pageData.length === 0) {
+            terminal.print('No more packages.', 'info');
+            return;
+        }
+
+        terminal.print(`📦 Registry packages (${start + 1}-${end} of ${total}):`, 'info');
+        pageData.forEach(pkg => {
+            terminal.print(`  ${pkg.name} (${pkg.version}) — ${pkg.description || 'No description'}`, 'output');
+        });
+
+        const hasNext = end < total;
+        const hasPrev = registryPage > 0;
+        let nav = '';
+        if (hasPrev) nav += ' [prev]';
+        if (hasNext) nav += ' [next]';
+        terminal.print(`--- Page ${registryPage + 1} of ${Math.ceil(total / PAGE_SIZE)}${nav}`, 'info');
+        terminal.print('Type "lynx next" or "lynx prev" to navigate.', 'info');
+    }
+
+    // ─── NEXT ──────────────────────────────────────────────────
+    function nextPage() {
+        registryPage++;
+        listRegistry();
+    }
+
+    // ─── PREV ──────────────────────────────────────────────────
+    function prevPage() {
+        if (registryPage > 0) {
+            registryPage--;
+            listRegistry();
+        } else {
+            terminal.print('Already on first page.', 'info');
+        }
+    }
+
     // ─── ADD ──────────────────────────────────────────────────────
     function addPackage(pkg) {
         if (!pkg) {
@@ -235,7 +310,27 @@
         'clear': clearTerminal,
 
         'init': initProject,
-        'list': listProjects,
+        'list': function(args) {
+            if (args === 'pkgs') {
+                listPackages();
+            } else if (args === 'registry') {
+                registryPage = 0;
+                listRegistry();
+            } else if (args && args.startsWith('registry page ')) {
+                const page = parseInt(args.split(' ')[2]) - 1;
+                if (!isNaN(page) && page >= 0) {
+                    registryPage = page;
+                    listRegistry();
+                } else {
+                    terminal.print('Usage: lynx list registry page <number>', 'error');
+                }
+            } else if (args && args !== 'pkgs' && args !== 'registry') {
+                // If it's not a known subcommand, treat it as a project name? No, just list projects.
+                listProjects();
+            } else {
+                listProjects();
+            }
+        },
         'open': openProject,
         'save': saveProject,
         'files': listFiles,
@@ -252,18 +347,14 @@
         'add': addPackage,
         'install': installPackages,
         'remove': removePackage,
-        'list': function(args) {
-            if (args === 'pkgs') {
-                listPackages();
-            } else {
-                listProjects();
-            }
-        },
 
         'build': buildProject,
         'run': runFile,
         'publish': publishProject,
         'update': updatePackages,
-        'search': searchRegistry
+        'search': searchRegistry,
+
+        'next': nextPage,
+        'prev': prevPage
     };
 })();
